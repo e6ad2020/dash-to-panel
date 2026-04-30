@@ -15,6 +15,8 @@
 
 ### Introduction
 
+**Note: This fork resolves the issue: https://github.com/issues/created?issue=home-sweet-gnome%7Cdash-to-panel%7C2258**
+
 Dash to Panel is an icon taskbar for Gnome Shell. This extension moves the dash into the gnome main panel so that the application launchers and system tray are combined into a single panel, similar to that found in KDE Plasma and Windows 7+. A separate dock is no longer needed for easy access to running and favorited applications. 
 
 Beyond that, just about every aspect of the panel is fully customizable. From positioning and scaling panel elements to running indicators to multi-monitor display, to window previews and even intellihide, Dash to Panel has everything you need to make your workspace feel like home.
@@ -103,12 +105,12 @@ Beyond that, just about every aspect of the panel is fully customizable. From po
 **To install the most recent official release:
 [Visit Dash-to-Panel at GNOME Extensions](https://extensions.gnome.org/extension/1160/dash-to-panel/)**
 
-To install a development version from source, please see the [Installation wiki page](https://github.com/home-sweet-gnome/dash-to-panel/wiki/Installation).
+To install a development version from source, please see the [Installation wiki page](https://github.com/e6ad2020/dash-to-panel/wiki/Installation).
 
 ## 
 ### FAQ
 
-How do I customize the panel? [See the Wiki](https://github.com/home-sweet-gnome/dash-to-panel/wiki/Enable-and-Customize#customize-it)
+How do I customize the panel? [See the Wiki](https://github.com/e6ad2020/dash-to-panel/wiki/Enable-and-Customize#customize-it)
 
 How do I embed my bottom left notification drawer into the panel like a system tray? [Top Icons Plus](https://extensions.gnome.org/extension/2311/topicons-plus) or [(K)StatusNotifierItem/AppIndicator Support](https://extensions.gnome.org/extension/615/appindicator-support)
 
@@ -139,7 +141,7 @@ This extension manipulates the Gnome Main Panel, aka Top Bar. So, most other ext
 ##
 ### Volunteers needed!
 
-This extension could be even better with your help! Any items in the issue tracker labelled `help wanted` or `good first issue` are up for grabs. For more info, see the [Contributing wiki page](https://github.com/home-sweet-gnome/dash-to-panel/wiki/Contributing).
+This extension could be even better with your help! Any items in the issue tracker labelled `help wanted` or `good first issue` are up for grabs. For more info, see the [Contributing wiki page](https://github.com/e6ad2020/dash-to-panel/wiki/Contributing).
 
 ## 
 ### Credits
@@ -193,6 +195,6 @@ Ideas for recursing child actors and assigning inline styles are based on code f
 ## 
 ### License & Terms ![](media/design/png/copyleft-16.png)
 
-Dash to Panel is available under the terms of the GPL-v2 or later license See [`COPYING`](https://github.com/home-sweet-gnome/dash-to-panel/blob/master/COPYING) for details.
+Dash to Panel is available under the terms of the GPL-v2 or later license See [`COPYING`](https://github.com/e6ad2020/dash-to-panel/blob/master/COPYING) for details.
 
 ![](https://img.shields.io/badge/Language-JavaScript-yellow.svg) ![](https://img.shields.io/badge/Licence-GPL--2.0-blue.svg)
