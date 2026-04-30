@@ -46,6 +46,7 @@ const FOCUSED_COLOR_OFFSET = 24
 const HEADER_COLOR_OFFSET = -12
 const FADE_SIZE = 36
 const PEEK_INDEX_PROP = '_dtpPeekInitialIndex'
+const WINDOW_WS_CHANGED = 'peekedWindowWorkspaceChanged'
 
 let headerHeight = 0
 let alphaBg = 0
@@ -80,6 +81,9 @@ export const PreviewMenu = GObject.registerClass(
         Math.min(panel.geom.innerSize, MAX_TRANSLATION) *
         this._translationDirection
 
+      let rtl =
+        Clutter.get_default_text_direction() == Clutter.TextDirection.RTL
+
       this.menu = new St.Widget({
         name: 'preview-menu',
         layout_manager: new Clutter.BinLayout(),
@@ -88,7 +92,15 @@ export const PreviewMenu = GObject.registerClass(
         x_expand: true,
         y_expand: true,
         x_align:
-          Clutter.ActorAlign[geom.position != St.Side.RIGHT ? 'START' : 'END'],
+          Clutter.ActorAlign[
+          geom.position != St.Side.RIGHT
+            ? rtl
+              ? 'END'
+              : 'START'
+            : rtl
+              ? 'START'
+              : 'END'
+          ],
         y_align:
           Clutter.ActorAlign[geom.position != St.Side.BOTTOM ? 'START' : 'END'],
       })
@@ -110,8 +122,8 @@ export const PreviewMenu = GObject.registerClass(
       this._timeoutsHandler = new Utils.TimeoutsHandler()
       this._signalsHandler = new Utils.GlobalSignalsHandler()
 
-      Main.layoutManager.addChrome(this, { affectsInputRegion: false })
-      Main.layoutManager.trackChrome(this.menu, { affectsInputRegion: true })
+      Utils.addChrome(this, { affectsInputRegion: false })
+      Utils.trackChrome(this.menu, { affectsInputRegion: true })
 
       this._resetHiddenState()
       this._refreshGlobals()
@@ -194,10 +206,10 @@ export const PreviewMenu = GObject.registerClass(
           setStyle(
             this.menu,
             'background: ' +
-              Utils.getrgbaColor(
-                this.panel.dynamicTransparency.backgroundColorRgb,
-                alphaBg,
-              ),
+            Utils.getrgbaColor(
+              this.panel.dynamicTransparency.backgroundColorRgb,
+              alphaBg,
+            ),
           )
         }
 
@@ -549,7 +561,7 @@ export const PreviewMenu = GObject.registerClass(
       previewsHeight = Math.min(previewsHeight, this.panel.monitor.height)
       this._updateScrollFade(
         previewsWidth < this.panel.monitor.width &&
-          previewsHeight < this.panel.monitor.height,
+        previewsHeight < this.panel.monitor.height,
       )
 
       if (this.panel.geom.vertical) {
@@ -688,7 +700,7 @@ export const PreviewMenu = GObject.registerClass(
             Main.layoutManager._queueUpdateRegions()
           }
 
-          ;(onComplete || (() => {}))()
+          ; (onComplete || (() => { }))()
         },
       }
 
@@ -718,6 +730,12 @@ export const PreviewMenu = GObject.registerClass(
 
       this._peekedWindow = window
 
+      this._signalsHandler.addWithLabel(WINDOW_WS_CHANGED, [
+        this._peekedWindow,
+        'workspace-changed',
+        () => this._endPeek(true, true),
+      ])
+
       if (currentWorkspace != windowWorkspace) {
         this._switchToWorkspaceImmediate(windowWorkspace.index())
         this._timeoutsHandler.add([T3, 100, focusWindow])
@@ -730,16 +748,18 @@ export const PreviewMenu = GObject.registerClass(
       }
     }
 
-    _endPeek(stayHere) {
+    _endPeek(stayHere, ignoreWindow) {
       this._timeoutsHandler.remove(T3)
 
       if (this._peekedWindow) {
+        let window = ignoreWindow ? null : this._peekedWindow
         let immediate =
           !stayHere &&
           this.peekInitialWorkspaceIndex != Utils.getCurrentWorkspace().index()
 
+        this._signalsHandler.removeWithLabel(WINDOW_WS_CHANGED)
         this._restorePeekedWindowStack()
-        this._focusMetaWindow(255, this._peekedWindow, immediate, true)
+        this._focusMetaWindow(255, window, immediate, true)
         this._peekedWindow = null
 
         if (!stayHere) {
@@ -769,12 +789,11 @@ export const PreviewMenu = GObject.registerClass(
 
     _focusMetaWindow(dimOpacity, window, immediate, ignoreFocus) {
       let isAppSpread = !Main.sessionMode.hasWorkspaces
-      let windowWorkspace = isAppSpread
-        ? Utils.getCurrentWorkspace()
-        : window.get_workspace()
       let windows = isAppSpread
         ? Utils.getAllMetaWindows()
-        : windowWorkspace.list_windows()
+        : (
+            window?.get_workspace() || Utils.getCurrentWorkspace()
+          ).list_windows()
 
       windows.forEach((mw) => {
         let wa = mw.get_compositor_private()
@@ -872,13 +891,17 @@ export const Preview = GObject.registerClass(
 
       closeButton.add_child(new St.Icon({ icon_name: 'window-close-symbolic' }))
 
+      let rtl =
+        Clutter.get_default_text_direction() == Clutter.TextDirection.RTL
+
       this._closeButtonBin = new St.Widget({
         style_class: 'preview-close-btn-container',
         layout_manager: new Clutter.BinLayout(),
         opacity: 0,
         x_expand: true,
         y_expand: true,
-        x_align: Clutter.ActorAlign[isLeftButtons ? 'START' : 'END'],
+        x_align:
+          Clutter.ActorAlign[isLeftButtons !== rtl ? 'START' : 'END'],
         y_align: Clutter.ActorAlign[isTopHeader ? 'START' : 'END'],
       })
 
@@ -904,11 +927,13 @@ export const Preview = GObject.registerClass(
         })
 
         setStyle(headerBox, this._getBackgroundColor(HEADER_COLOR_OFFSET, 1))
+
         this._workspaceIndicator = new St.Label({
           y_align: Clutter.ActorAlign.CENTER,
         })
         this._windowTitle = new St.Label({
           y_align: Clutter.ActorAlign.CENTER,
+          x_align: Clutter.ActorAlign.START,
           x_expand: true,
         })
 
@@ -917,14 +942,16 @@ export const Preview = GObject.registerClass(
         })
         this._iconBin.set_size(headerHeight, headerHeight)
 
+        let effectiveLeftButtons = rtl ? !isLeftButtons : isLeftButtons
+
         headerBox.add_child(this._iconBin)
         headerBox.insert_child_at_index(
           this._workspaceIndicator,
-          isLeftButtons ? 0 : 1,
+          effectiveLeftButtons ? 0 : 1,
         )
         headerBox.insert_child_at_index(
           this._windowTitle,
-          isLeftButtons ? 1 : 2,
+          effectiveLeftButtons ? 1 : 2,
         )
 
         box.insert_child_at_index(headerBox, isTopHeader ? 0 : 1)
@@ -965,17 +992,17 @@ export const Preview = GObject.registerClass(
       setStyle(
         this._closeButtonBin,
         'padding: ' +
-          (headerHeight
-            ? Math.round(
-                ((headerHeight - closeButtonHeight) * 0.5) / scaleFactor,
-              )
-            : 4) +
-          'px;' +
-          this._getBackgroundColor(
-            HEADER_COLOR_OFFSET,
-            headerHeight ? 1 : 0.6,
-          ) +
-          closeButtonBorderRadius,
+        (headerHeight
+          ? Math.round(
+            ((headerHeight - closeButtonHeight) * 0.5) / scaleFactor,
+          )
+          : 4) +
+        'px;' +
+        this._getBackgroundColor(
+          HEADER_COLOR_OFFSET,
+          headerHeight ? 1 : 0.6,
+        ) +
+        closeButtonBorderRadius,
       )
     }
 
@@ -1128,8 +1155,8 @@ export const Preview = GObject.registerClass(
         this._previewMenu.peekInitialWorkspaceIndex < 0
           ? Utils.getCurrentWorkspace()
           : Utils.getWorkspaceByIndex(
-              this._previewMenu.peekInitialWorkspaceIndex,
-            )
+            this._previewMenu.peekInitialWorkspaceIndex,
+          )
 
       this._previewMenu.hasGrab = true
 
@@ -1153,9 +1180,9 @@ export const Preview = GObject.registerClass(
       if (this.window.get_workspace() != currentWorkspace) {
         let menuItem = new PopupMenu.PopupMenuItem(
           _('Move to current Workspace') +
-            ' [' +
-            (currentWorkspace.index() + 1) +
-            ']',
+          ' [' +
+          (currentWorkspace.index() + 1) +
+          ']',
         )
         let menuItems = menu.box.get_children()
         let insertIndex = Utils.findIndex(
@@ -1180,6 +1207,8 @@ export const Preview = GObject.registerClass(
 
     _updateHeader() {
       if (headerHeight) {
+        let rtl =
+          Clutter.get_default_text_direction() == Clutter.TextDirection.RTL
         let iconTextureSize = SETTINGS.get_boolean(
           'window-preview-use-custom-icon-size',
         )
@@ -1200,16 +1229,21 @@ export const Preview = GObject.registerClass(
           'px;' +
           'font-weight: ' +
           SETTINGS.get_string('window-preview-title-font-weight') +
+          ';' +
+          'text-align: ' +
+          (rtl ? 'right' : 'left') +
           ';'
 
         this._iconBin.destroy_all_children()
         this._iconBin.add_child(icon)
 
         if (this._previewMenu.shouldDisplayWorkspaceNumbers()) {
+          let effectiveLeftButtons = rtl ? !isLeftButtons : isLeftButtons
+
           workspaceIndex = (this.window.get_workspace().index() + 1).toString()
           workspaceStyle =
             'margin: 0 4px 0 ' +
-            (isLeftButtons
+            (effectiveLeftButtons
               ? Math.round((headerHeight - icon.width) * 0.5) + 'px'
               : '0') +
             '; padding: 0 4px;' +
@@ -1227,7 +1261,8 @@ export const Preview = GObject.registerClass(
         )
         setStyle(
           this._windowTitle,
-          'max-width: 0px; padding-right: 4px;' + commonTitleStyles,
+          (rtl ? 'padding-left: 4px;' : 'padding-right: 4px;') +
+          commonTitleStyles,
         )
         this._updateWindowTitle()
       }
@@ -1316,7 +1351,7 @@ export const Preview = GObject.registerClass(
         opacity: 0,
         layout_manager:
           frameRect.width != bufferRect.width ||
-          frameRect.height != bufferRect.height
+            frameRect.height != bufferRect.height
             ? new WindowCloneLayout(frameRect, bufferRect)
             : new Clutter.BinLayout(),
       })
